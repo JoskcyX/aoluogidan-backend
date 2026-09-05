@@ -171,6 +171,10 @@ class S3StorageDriver implements StorageDriver {
     this.client = new S3Client({
       region: process.env.S3_REGION || "auto",
       endpoint,
+      forcePathStyle: true,
+      // Some S3-compatible providers (including Neon) reject the checksum
+      // trailer the AWS SDK adds by default on plain uploads.
+      requestChecksumCalculation: "WHEN_REQUIRED",
       credentials: {
         accessKeyId,
         secretAccessKey,
