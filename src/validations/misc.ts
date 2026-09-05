@@ -142,3 +142,20 @@ export const pageContentSchema = z.object({
     .min(1)
     .transform((html) => sanitizeRichText(html)),
 });
+
+/** The fixed set of interior pages that can have an admin-set hero photo. */
+export const PAGE_HERO_KEYS = [
+  "about",
+  "team",
+  "contact",
+  "practice-areas",
+  "insights",
+  "faq",
+  "consultation",
+] as const;
+export type PageHeroKey = (typeof PAGE_HERO_KEYS)[number];
+
+export const pageHeroSchema = z.object({
+  imageUrl: z.string().trim().max(2000).optional().nullable(),
+});
+export type PageHeroFormValues = z.infer<typeof pageHeroSchema>;

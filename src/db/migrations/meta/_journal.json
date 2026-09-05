@@ -15,6 +15,13 @@
       "when": 1788508671603,
       "tag": "0001_lowly_jimmy_woo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788627984378,
+      "tag": "0002_colorful_aaron_stack",
+      "breakpoints": true
     }
   ]
 }

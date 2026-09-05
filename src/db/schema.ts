@@ -257,7 +257,7 @@ export const media = pgTable("media", {
 export const siteSettings = pgTable("site_settings", {
   id: varchar("id", { length: 20 }).primaryKey().default("singleton"),
 
-  firmName: varchar("firm_name", { length: 255 }).notNull().default("Harcourt & Vale LLP"),
+  firmName: varchar("firm_name", { length: 255 }).notNull().default("A. Oluogidan & Co"),
   logoUrl: text("logo_url"),
   tagline: varchar("tagline", { length: 255 }),
   description: text("description"),
@@ -298,7 +298,7 @@ export const siteSettings = pgTable("site_settings", {
   statPracticeAreasCount: integer("stat_practice_areas_count").notNull().default(10),
   statClientsServed: integer("stat_clients_served").notNull().default(500),
 
-  siteTitle: varchar("site_title", { length: 255 }).notNull().default("Harcourt & Vale LLP"),
+  siteTitle: varchar("site_title", { length: 255 }).notNull().default("A. Oluogidan & Co"),
   siteDescription: text("site_description"),
   defaultSeoImageUrl: text("default_seo_image_url"),
   googleVerification: varchar("google_verification", { length: 255 }),
@@ -351,6 +351,18 @@ export const pages = pgTable("pages", {
   slug: varchar("slug", { length: 150 }).notNull().unique(),
   title: varchar("title", { length: 255 }).notNull(),
   content: text("content").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+// Hero banner photo for each of the interior pages that don't already have
+// their own content table (Team, Contact, Practice Areas, Insights, FAQ,
+// Consultation) plus About. Keyed by a fixed page key rather than an
+// auto-generated id, so the admin UI can always show one row per page even
+// before an image has ever been set. The homepage keeps its own 4-photo
+// slideshow on `site_settings` and isn't part of this table.
+export const pageHeroImages = pgTable("page_hero_images", {
+  pageKey: varchar("page_key", { length: 50 }).primaryKey(),
+  imageUrl: text("image_url"),
   updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
@@ -462,4 +474,5 @@ export type AboutContent = typeof aboutContent.$inferSelect;
 export type CoreValue = typeof coreValues.$inferSelect;
 export type WhyChooseUsItem = typeof whyChooseUsItems.$inferSelect;
 export type Page = typeof pages.$inferSelect;
+export type PageHeroImage = typeof pageHeroImages.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;

@@ -17,9 +17,10 @@ import {
   aboutContent,
   coreValues,
   pages,
+  pageHeroImages,
   enquiries,
 } from "@/db/schema";
-import { contactFormSchema, consultationFormSchema } from "@/validations/misc";
+import { contactFormSchema, consultationFormSchema, PAGE_HERO_KEYS } from "@/validations/misc";
 import { rateLimit, getClientIp } from "@/rate-limit";
 import { sendEnquiryNotification } from "@/mailer";
 
@@ -244,6 +245,14 @@ router.get("/pages/:slug", async (req, res) => {
   const [page] = await db.select().from(pages).where(eq(pages.slug, req.params.slug)).limit(1);
   if (!page) return res.status(404).json({ error: "Page not found." });
   res.json({ page });
+});
+
+router.get("/page-heroes", async (_req, res) => {
+  const rows = await db.select().from(pageHeroImages);
+  const byKey = new Map(rows.map((r) => [r.pageKey, r.imageUrl]));
+  const pageHeroes: Record<string, string | null> = {};
+  for (const key of PAGE_HERO_KEYS) pageHeroes[key] = byKey.get(key) ?? null;
+  res.json({ pageHeroes });
 });
 
 router.get("/sitemap-data", async (_req, res) => {

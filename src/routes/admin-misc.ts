@@ -11,6 +11,7 @@ import {
   coreValues,
   whyChooseUsItems,
   pages,
+  pageHeroImages,
   enquiries,
   lawyers,
   practiceAreas,
@@ -18,7 +19,7 @@ import {
   testimonials,
   auditLogs,
 } from "@/db/schema";
-import { userSchema, settingsSchema, aboutContentSchema, pageContentSchema, enquiryStatusSchema } from "@/validations/misc";
+import { userSchema, settingsSchema, aboutContentSchema, pageContentSchema, pageHeroSchema, PAGE_HERO_KEYS, enquiryStatusSchema } from "@/validations/misc";
 import { requireAuth, requireSuperAdmin } from "@/auth";
 import { logAction } from "@/audit";
 import { storage, validateUploadedImage, InvalidImageError } from "@/storage";
@@ -299,6 +300,46 @@ router.patch("/pages/:slug", async (req, res) => {
   });
 
   res.json({ page: updated });
+});
+
+/* ----------------------------- Page Hero Images -------------------------------- */
+// One banner photo per interior page (About, Team, Contact, Practice Areas,
+// Insights, FAQ, Consultation). The homepage's own 4-photo slideshow still
+// lives on /settings and is untouched by this.
+
+router.get("/page-heroes", async (_req, res) => {
+  const rows = await db.select().from(pageHeroImages);
+  const byKey = new Map(rows.map((r) => [r.pageKey, r.imageUrl]));
+  const pageHeroes = PAGE_HERO_KEYS.map((key) => ({ pageKey: key, imageUrl: byKey.get(key) ?? null }));
+  res.json({ pageHeroes });
+});
+
+router.patch("/page-heroes/:key", async (req, res) => {
+  const user = req.user!;
+  const key = req.params.key;
+  if (!PAGE_HERO_KEYS.includes(key as any)) {
+    return res.status(400).json({ error: "Unknown page." });
+  }
+
+  const parsed = pageHeroSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid data." });
+
+  const [updated] = await db
+    .insert(pageHeroImages)
+    .values({ pageKey: key, imageUrl: parsed.data.imageUrl ?? null })
+    .onConflictDoUpdate({
+      target: pageHeroImages.pageKey,
+      set: { imageUrl: parsed.data.imageUrl ?? null, updatedAt: new Date() },
+    })
+    .returning();
+
+  await logAction(user, {
+    action: "updated",
+    resourceType: "Page Hero Image",
+    description: `updated the hero photo for the "${key}" page.`,
+  });
+
+  res.json({ pageHero: updated });
 });
 
 /* -------------------------------- Enquiries ----------------------------------- */
