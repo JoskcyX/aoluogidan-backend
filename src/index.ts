@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import "express-async-errors";
 import cors from "cors";
 import path from "path";
 
@@ -47,4 +48,16 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 const port = Number(process.env.PORT) || 4000;
 app.listen(port, () => {
   console.log(`Backend listening on port ${port}`);
+});
+
+// Belt-and-braces: log and keep running instead of letting the whole
+// process die if something throws outside of an Express request (Node 15+
+// terminates on an unhandled rejection by default). `express-async-errors`
+// above already covers ordinary route errors; this just makes sure a
+// one-off bug anywhere else can't take the whole site down.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
 });
