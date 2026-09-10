@@ -3,7 +3,12 @@ import { sanitizeRichText } from "@/sanitize";
 
 export const faqSchema = z.object({
   question: z.string().trim().min(5, "Enter the question.").max(500),
-  answer: z.string().trim().min(5, "Enter the answer.").max(5000),
+  answer: z
+    .string()
+    .trim()
+    .min(5, "Enter the answer.")
+    .max(5000)
+    .transform((html) => sanitizeRichText(html)),
   category: z.string().trim().max(150).optional().nullable(),
   practiceAreaId: z.string().trim().optional().nullable(),
   published: z.boolean().default(true),
@@ -13,7 +18,12 @@ export type FaqFormValues = z.infer<typeof faqSchema>;
 export const testimonialSchema = z.object({
   clientName: z.string().trim().min(2, "Enter the client's name or an anonymous label.").max(200),
   isAnonymous: z.boolean().default(false),
-  testimonial: z.string().trim().min(10, "Enter the testimonial text.").max(2000),
+  testimonial: z
+    .string()
+    .trim()
+    .min(10, "Enter the testimonial text.")
+    .max(2000)
+    .transform((html) => sanitizeRichText(html)),
   companyPosition: z.string().trim().max(255).optional().nullable(),
   imageUrl: z.string().trim().optional().nullable(),
   dateGiven: z.string().trim().optional().nullable(),
