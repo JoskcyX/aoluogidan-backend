@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import { and, asc, desc, eq, inArray, ne, or, ilike } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -19,12 +20,15 @@ import {
   pages,
   pageHeroImages,
   enquiries,
+  internshipApplications,
 } from "@/db/schema";
-import { contactFormSchema, consultationFormSchema, PAGE_HERO_KEYS } from "@/validations/misc";
+import { contactFormSchema, consultationFormSchema, internshipApplicationSchema, PAGE_HERO_KEYS } from "@/validations/misc";
 import { rateLimit, getClientIp } from "@/rate-limit";
-import { sendEnquiryNotification } from "@/mailer";
+import { sendEnquiryNotification, sendInternshipApplicantThankYou, sendInternshipNotification } from "@/mailer";
+import { storage, validateUploadedDocument } from "@/storage";
 
 const router = Router();
+const internshipUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 2 } });
 
 router.get("/settings", async (_req, res) => {
   const [settings] = await db.select().from(siteSettings).limit(1);
@@ -347,6 +351,59 @@ router.post("/consultation", async (req, res) => {
   });
 
   await sendEnquiryNotification({ type: "Consultation", fullName, email, phone, areaOfLaw, message });
+
+  res.json({ ok: true });
+});
+
+router.post("/internships", internshipUpload.array("files", 2), async (req, res) => {
+  const ip = getClientIp(req);
+  const { allowed } = rateLimit(`internship:${ip}`, { limit: 5, windowMs: 15 * 60 * 1000 });
+  if (!allowed) {
+    return res
+      .status(429)
+      .json({ error: "You've submitted several requests recently. Please try again in a little while." });
+  }
+
+  const parsed = internshipApplicationSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid submission." });
+  }
+
+  if (parsed.data.website) {
+    // Honeypot tripped — pretend success so the bot doesn't retry.
+    return res.json({ ok: true });
+  }
+
+  const uploadedFiles = (req.files as Express.Multer.File[] | undefined) ?? [];
+  if (uploadedFiles.length === 0) {
+    return res.status(400).json({ error: "Please attach your CV and Cover Letter." });
+  }
+
+  const storedFiles: { name: string; url: string; mimeType: string; size: number }[] = [];
+  for (const file of uploadedFiles) {
+    const uploaded = { buffer: file.buffer, originalName: file.originalname, mimeType: file.mimetype, size: file.size };
+    const validationError = validateUploadedDocument(uploaded);
+    if (validationError) return res.status(400).json({ error: validationError });
+
+    const stored = await storage.saveDocument(uploaded, "internships");
+    storedFiles.push({ name: file.originalname, url: stored.url, mimeType: stored.mimeType, size: stored.size });
+  }
+
+  const { firstName, lastName, email, phone } = parsed.data;
+
+  await db.insert(internshipApplications).values({
+    firstName,
+    lastName,
+    email,
+    phone,
+    files: storedFiles,
+    status: "NEW",
+  });
+
+  const [settings] = await db.select().from(siteSettings).limit(1);
+
+  await sendInternshipApplicantThankYou({ firstName, email, firmName: settings?.firmName });
+  await sendInternshipNotification({ firstName, lastName, email, phone });
 
   res.json({ ok: true });
 });

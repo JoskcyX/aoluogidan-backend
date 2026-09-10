@@ -17,6 +17,7 @@ import {
   timestamp,
   primaryKey,
   pgEnum,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
@@ -36,6 +37,13 @@ export const enquiryStatusEnum = pgEnum("enquiry_status", [
   "IN_PROGRESS",
   "RESOLVED",
   "ARCHIVED",
+]);
+export const internshipStatusEnum = pgEnum("internship_status", [
+  "NEW",
+  "REVIEWED",
+  "SHORTLISTED",
+  "REJECTED",
+  "ACCEPTED",
 ]);
 
 // ----------------------------------------------------------------------------
@@ -229,6 +237,25 @@ export const enquiries = pgTable("enquiries", {
   preferredDate: timestamp("preferred_date"),
   preferredTime: varchar("preferred_time", { length: 50 }),
   status: enquiryStatusEnum("status").notNull().default("NEW"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+// ----------------------------------------------------------------------------
+// Internship Applications
+// ----------------------------------------------------------------------------
+
+export const internshipApplications = pgTable("internship_applications", {
+  id: id(),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 50 }).notNull(),
+  // CV + Cover Letter (up to 2 documents) uploaded through the public form.
+  files: jsonb("files")
+    .$type<{ name: string; url: string; mimeType: string; size: number }[]>()
+    .notNull(),
+  status: internshipStatusEnum("status").notNull().default("NEW"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
 });
@@ -468,6 +495,8 @@ export type Testimonial = typeof testimonials.$inferSelect;
 export type NewTestimonial = typeof testimonials.$inferInsert;
 export type Enquiry = typeof enquiries.$inferSelect;
 export type NewEnquiry = typeof enquiries.$inferInsert;
+export type InternshipApplication = typeof internshipApplications.$inferSelect;
+export type NewInternshipApplication = typeof internshipApplications.$inferInsert;
 export type Media = typeof media.$inferSelect;
 export type SiteSettings = typeof siteSettings.$inferSelect;
 export type AboutContent = typeof aboutContent.$inferSelect;

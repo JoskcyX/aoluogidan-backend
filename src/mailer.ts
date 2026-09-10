@@ -78,3 +78,100 @@ export async function sendEnquiryNotification(params: {
     console.error("[mailer] Failed to send email:", error);
   }
 }
+
+/**
+ * Notifies the firm's configured inbox about a new internship application.
+ */
+export async function sendInternshipNotification(params: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+}) {
+  const to = process.env.FIRM_NOTIFICATION_EMAIL;
+
+  if (!isConfigured() || !to) {
+    console.log(
+      `[mailer] Resend not configured — skipping notification for new internship application from ${params.email}.`
+    );
+    return;
+  }
+
+  const text = [
+    "A new internship application was submitted on the website.",
+    "",
+    `Name: ${params.firstName} ${params.lastName}`,
+    `Email: ${params.email}`,
+    `Phone: ${params.phone}`,
+    "",
+    "View the application and attached files from the admin dashboard under Internships.",
+  ].join("\n");
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM!,
+      to: [to],
+      replyTo: params.email,
+      subject: `New Internship Application — ${params.firstName} ${params.lastName}`,
+      text,
+    });
+
+    if (error) {
+      console.error("[mailer] Resend error (internship notification):", error);
+      return;
+    }
+
+    console.log(`[mailer] Internship notification sent successfully. Email ID: ${data?.id}`);
+  } catch (error) {
+    console.error("[mailer] Failed to send email:", error);
+  }
+}
+
+/**
+ * Sends the applicant a short thank-you/confirmation email once their
+ * internship application has been received.
+ */
+export async function sendInternshipApplicantThankYou(params: {
+  firstName: string;
+  email: string;
+  firmName?: string;
+}) {
+  if (!isConfigured()) {
+    console.log(
+      `[mailer] Resend not configured — skipping applicant thank-you email to ${params.email}.`
+    );
+    return;
+  }
+
+  const firmName = params.firmName ?? "our firm";
+
+  const text = [
+    `Dear ${params.firstName},`,
+    "",
+    `Thank you for applying to the Internship Programme at ${firmName}.`,
+    "We have received your application, including your attached documents, and our team will review it shortly. If your profile matches what we're looking for, we will reach out to you directly.",
+    "",
+    "We appreciate your interest in joining our firm.",
+    "",
+    "Warm regards,",
+    firmName,
+  ].join("\n");
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM!,
+      to: [params.email],
+      subject: "We've received your internship application",
+      text,
+    });
+
+    if (error) {
+      console.error("[mailer] Resend error (applicant thank-you):", error);
+      return;
+    }
+
+    console.log(`[mailer] Applicant thank-you email sent successfully. Email ID: ${data?.id}`);
+  } catch (error) {
+    console.error("[mailer] Failed to send applicant thank-you email:", error);
+  }
+}

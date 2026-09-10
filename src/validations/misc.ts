@@ -56,6 +56,19 @@ export const consultationFormSchema = z.object({
 });
 export type ConsultationFormValues = z.infer<typeof consultationFormSchema>;
 
+export const internshipApplicationSchema = z.object({
+  firstName: z.string().trim().min(1, "Enter your first name.").max(100),
+  lastName: z.string().trim().min(1, "Enter your last name.").max(100),
+  email: emailField,
+  phone: z.string().trim().min(5, "Enter a phone number.").max(50),
+  website: z.string().max(0).optional().or(z.literal("")),
+});
+export type InternshipApplicationFormValues = z.infer<typeof internshipApplicationSchema>;
+
+export const internshipStatusSchema = z.object({
+  status: z.enum(["NEW", "REVIEWED", "SHORTLISTED", "REJECTED", "ACCEPTED"]),
+});
+
 export const settingsSchema = z.object({
   firmName: z.string().trim().min(2).max(255),
   logoUrl: z.string().trim().optional().nullable(),

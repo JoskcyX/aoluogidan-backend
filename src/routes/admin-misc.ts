@@ -18,8 +18,9 @@ import {
   blogPosts,
   testimonials,
   auditLogs,
+  internshipApplications,
 } from "@/db/schema";
-import { userSchema, settingsSchema, aboutContentSchema, pageContentSchema, pageHeroSchema, PAGE_HERO_KEYS, enquiryStatusSchema } from "@/validations/misc";
+import { userSchema, settingsSchema, aboutContentSchema, pageContentSchema, pageHeroSchema, PAGE_HERO_KEYS, enquiryStatusSchema, internshipStatusSchema } from "@/validations/misc";
 import { requireAuth, requireSuperAdmin } from "@/auth";
 import { logAction } from "@/audit";
 import { storage, validateUploadedImage, InvalidImageError } from "@/storage";
@@ -384,6 +385,81 @@ router.delete("/enquiries/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+/* ------------------------------ Internships ------------------------------- */
+
+router.get("/internships", async (req, res) => {
+  const statusFilter = typeof req.query.status === "string" ? req.query.status : undefined;
+  const rows = await db
+    .select()
+    .from(internshipApplications)
+    .where(statusFilter ? eq(internshipApplications.status, statusFilter as any) : undefined)
+    .orderBy(desc(internshipApplications.createdAt));
+  res.json({ applications: rows });
+});
+
+router.get("/internships/:id", async (req, res) => {
+  const [application] = await db
+    .select()
+    .from(internshipApplications)
+    .where(eq(internshipApplications.id, req.params.id))
+    .limit(1);
+  if (!application) return res.status(404).json({ error: "Application not found." });
+  res.json({ application });
+});
+
+router.patch("/internships/:id", async (req, res) => {
+  const user = req.user!;
+  const [existing] = await db
+    .select()
+    .from(internshipApplications)
+    .where(eq(internshipApplications.id, req.params.id))
+    .limit(1);
+  if (!existing) return res.status(404).json({ error: "Application not found." });
+
+  const parsed = internshipStatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid status." });
+
+  const [updated] = await db
+    .update(internshipApplications)
+    .set({ status: parsed.data.status })
+    .where(eq(internshipApplications.id, req.params.id))
+    .returning();
+
+  await logAction(user, {
+    action: "updated",
+    resourceType: "InternshipApplication",
+    resourceId: updated.id,
+    description: `updated the internship application status for "${updated.firstName} ${updated.lastName}" to ${updated.status.replace("_", " ").toLowerCase()}.`,
+  });
+
+  res.json({ application: updated });
+});
+
+router.delete("/internships/:id", async (req, res) => {
+  const user = req.user!;
+  const [existing] = await db
+    .select()
+    .from(internshipApplications)
+    .where(eq(internshipApplications.id, req.params.id))
+    .limit(1);
+  if (!existing) return res.status(404).json({ error: "Application not found." });
+
+  for (const file of existing.files ?? []) {
+    await storage.delete(file.url).catch(() => {});
+  }
+
+  await db.delete(internshipApplications).where(eq(internshipApplications.id, req.params.id));
+
+  await logAction(user, {
+    action: "deleted",
+    resourceType: "InternshipApplication",
+    resourceId: req.params.id,
+    description: `deleted the internship application from "${existing.firstName} ${existing.lastName}".`,
+  });
+
+  res.json({ ok: true });
+});
+
 /* -------------------------------- Dashboard ----------------------------------- */
 
 router.get("/dashboard", async (_req, res) => {
@@ -394,6 +470,8 @@ router.get("/dashboard", async (_req, res) => {
     [{ value: draftCount }],
     [{ value: unreadCount }],
     [{ value: testimonialCount }],
+    [{ value: internshipCount }],
+    [{ value: newInternshipCount }],
   ] = await Promise.all([
     db.select({ value: count() }).from(lawyers),
     db.select({ value: count() }).from(practiceAreas),
@@ -401,9 +479,16 @@ router.get("/dashboard", async (_req, res) => {
     db.select({ value: count() }).from(blogPosts).where(eq(blogPosts.status, "DRAFT")),
     db.select({ value: count() }).from(enquiries).where(eq(enquiries.status, "NEW")),
     db.select({ value: count() }).from(testimonials).where(eq(testimonials.published, true)),
+    db.select({ value: count() }).from(internshipApplications),
+    db.select({ value: count() }).from(internshipApplications).where(eq(internshipApplications.status, "NEW")),
   ]);
 
   const recentEnquiries = await db.select().from(enquiries).orderBy(desc(enquiries.createdAt)).limit(5);
+  const recentInternshipApplications = await db
+    .select()
+    .from(internshipApplications)
+    .orderBy(desc(internshipApplications.createdAt))
+    .limit(5);
   const recentActivity = await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(6);
 
   res.json({
@@ -413,7 +498,10 @@ router.get("/dashboard", async (_req, res) => {
     draftCount,
     unreadCount,
     testimonialCount,
+    internshipCount,
+    newInternshipCount,
     recentEnquiries,
+    recentInternshipApplications,
     recentActivity,
   });
 });

@@ -18,6 +18,25 @@ export const ALLOWED_IMAGE_TYPES = [
 
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB
 
+// Documents (CV / Cover Letter) accepted on the public Internship form.
+export const ALLOWED_DOCUMENT_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
+export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024; // 5MB
+
+export function validateUploadedDocument(file: UploadedFile): string | null {
+  if (!ALLOWED_DOCUMENT_TYPES.includes(file.mimeType)) {
+    return "That file type isn't supported. Please upload a PDF or Word document.";
+  }
+  if (file.size > MAX_DOCUMENT_BYTES) {
+    return "That file is too large. Please upload a file under 5MB.";
+  }
+  return null;
+}
+
 // Magic-byte signatures for the image types we accept.
 const MAGIC_BYTES: { mime: string; check: (buf: Buffer) => boolean }[] = [
   {
@@ -79,6 +98,11 @@ export interface StoredFile {
 
 export interface StorageDriver {
   save(file: UploadedFile, folder: string): Promise<StoredFile>;
+  /**
+   * Saves a non-image document (CV/Cover Letter) as-is, skipping the
+   * image magic-byte check that `save()` performs.
+   */
+  saveDocument(file: UploadedFile, folder: string): Promise<StoredFile>;
   delete(url: string): Promise<void>;
 }
 
@@ -125,6 +149,23 @@ class LocalStorageDriver implements StorageDriver {
     } catch {
       // File already gone — nothing to do.
     }
+  }
+
+  async saveDocument(file: UploadedFile, folder: string): Promise<StoredFile> {
+    const ext = sanitizeDocumentExtension(file.originalName);
+    const filename = `${randomUUID()}${ext}`;
+    const dir = path.join(this.uploadsRoot, folder);
+
+    await mkdir(dir, { recursive: true });
+
+    await writeFile(path.join(dir, filename), file.buffer);
+
+    return {
+      url: `/uploads/${folder}/${filename}`,
+      filename,
+      mimeType: file.mimeType,
+      size: file.size,
+    };
   }
 }
 
@@ -242,12 +283,44 @@ class S3StorageDriver implements StorageDriver {
       })
     );
   }
+
+  async saveDocument(file: UploadedFile, folder: string): Promise<StoredFile> {
+    const buffer = file.buffer;
+    const ext = sanitizeDocumentExtension(file.originalName);
+    const filename = `${randomUUID()}${ext}`;
+    const key = `${folder}/${filename}`;
+
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: file.mimeType,
+        ContentLength: buffer.length,
+      })
+    );
+
+    return {
+      url: `${this.publicUrl}/${key}`,
+      filename,
+      mimeType: file.mimeType,
+      size: buffer.length,
+    };
+  }
 }
 
 function sanitizeExtension(originalName: string): string {
   const ext = path.extname(originalName).toLowerCase();
 
   const allowed = [".jpg", ".jpeg", ".png", ".webp"];
+
+  return allowed.includes(ext) ? ext : "";
+}
+
+function sanitizeDocumentExtension(originalName: string): string {
+  const ext = path.extname(originalName).toLowerCase();
+
+  const allowed = [".pdf", ".doc", ".docx"];
 
   return allowed.includes(ext) ? ext : "";
 }
