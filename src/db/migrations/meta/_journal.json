@@ -29,6 +29,13 @@
       "when": 1789019308555,
       "tag": "0003_shallow_payback",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789126006540,
+      "tag": "0004_faulty_gunslinger",
+      "breakpoints": true
     }
   ]
 }

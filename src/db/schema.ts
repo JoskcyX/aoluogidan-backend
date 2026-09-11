@@ -325,6 +325,16 @@ export const siteSettings = pgTable("site_settings", {
   statPracticeAreasCount: integer("stat_practice_areas_count").notNull().default(10),
   statClientsServed: integer("stat_clients_served").notNull().default(500),
 
+  // Optional "Trusted By" client logo strip shown on the homepage, right
+  // below the stats bar. All six slots are optional — the section on the
+  // frontend simply doesn't render until at least one of these is set.
+  clientLogoUrl1: text("client_logo_url_1"),
+  clientLogoUrl2: text("client_logo_url_2"),
+  clientLogoUrl3: text("client_logo_url_3"),
+  clientLogoUrl4: text("client_logo_url_4"),
+  clientLogoUrl5: text("client_logo_url_5"),
+  clientLogoUrl6: text("client_logo_url_6"),
+
   siteTitle: varchar("site_title", { length: 255 }).notNull().default("A. Oluogidan & Co"),
   siteDescription: text("site_description"),
   defaultSeoImageUrl: text("default_seo_image_url"),
