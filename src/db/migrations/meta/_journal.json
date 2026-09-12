@@ -36,6 +36,13 @@
       "when": 1789126006540,
       "tag": "0004_faulty_gunslinger",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789229841211,
+      "tag": "0005_redundant_bushwacker",
+      "breakpoints": true
     }
   ]
 }

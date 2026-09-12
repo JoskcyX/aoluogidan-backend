@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { and, asc, desc, eq, inArray, ne, or, ilike } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, or, ilike, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   siteSettings,
@@ -157,7 +157,7 @@ router.get("/blog", async (req, res) => {
       excerpt: blogPosts.excerpt,
       featuredImageUrl: blogPosts.featuredImageUrl,
       publishedAt: blogPosts.publishedAt,
-      authorName: users.name,
+      authorName: sql<string>`coalesce(${blogPosts.authorName}, ${users.name})`,
       categoryName: blogCategories.name,
     })
     .from(blogPosts)
@@ -179,7 +179,7 @@ router.get("/blog/:slug", async (req, res) => {
       content: blogPosts.content,
       featuredImageUrl: blogPosts.featuredImageUrl,
       publishedAt: blogPosts.publishedAt,
-      authorName: users.name,
+      authorName: sql<string>`coalesce(${blogPosts.authorName}, ${users.name})`,
       categoryName: blogCategories.name,
       categoryId: blogPosts.categoryId,
       seoTitle: blogPosts.seoTitle,

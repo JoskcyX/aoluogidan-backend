@@ -161,6 +161,7 @@ export const blogPosts = pgTable("blog_posts", {
   authorId: varchar("author_id", { length: 128 })
     .notNull()
     .references(() => users.id),
+  authorName: varchar("author_name", { length: 150 }),
   categoryId: varchar("category_id", { length: 128 }).references(() => blogCategories.id),
   status: contentStatusEnum("status").notNull().default("DRAFT"),
   publishedAt: timestamp("published_at"),

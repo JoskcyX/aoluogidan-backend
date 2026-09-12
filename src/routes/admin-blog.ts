@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { and, asc, desc, eq, ilike, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { blogPosts, blogTags, blogPostTags, blogCategories, faqs, testimonials } from "@/db/schema";
+import { blogPosts, blogTags, blogPostTags, blogCategories, faqs, testimonials, users } from "@/db/schema";
 import { blogPostSchema, blogCategorySchema } from "@/validations/blog-post";
 import { faqSchema, testimonialSchema } from "@/validations/misc";
 import { requireAuth } from "@/auth";
@@ -33,8 +33,20 @@ async function resolveTagIds(tagNames: string[]) {
 router.get("/blog", async (req, res) => {
   const search = typeof req.query.q === "string" ? req.query.q.trim() : undefined;
   const rows = await db
-    .select()
+    .select({
+      id: blogPosts.id,
+      title: blogPosts.title,
+      slug: blogPosts.slug,
+      status: blogPosts.status,
+      publishedAt: blogPosts.publishedAt,
+      createdAt: blogPosts.createdAt,
+      categoryId: blogPosts.categoryId,
+      authorName: sql<string>`coalesce(${blogPosts.authorName}, ${users.name})`,
+      categoryName: blogCategories.name,
+    })
     .from(blogPosts)
+    .leftJoin(users, eq(blogPosts.authorId, users.id))
+    .leftJoin(blogCategories, eq(blogPosts.categoryId, blogCategories.id))
     .where(search ? ilike(blogPosts.title, `%${search}%`) : undefined)
     .orderBy(desc(blogPosts.createdAt));
   res.json({ posts: rows });
@@ -68,6 +80,7 @@ router.post("/blog", async (req, res) => {
     .insert(blogPosts)
     .values({
       ...data,
+      authorName: data.authorName?.trim() || null,
       slug,
       authorId: user.id,
       categoryId: data.categoryId || null,
@@ -118,6 +131,7 @@ router.patch("/blog/:id", async (req, res) => {
     .update(blogPosts)
     .set({
       ...data,
+      authorName: data.authorName?.trim() || null,
       slug,
       categoryId: data.categoryId || null,
       publishedAt: justPublished ? new Date() : existing.publishedAt,
