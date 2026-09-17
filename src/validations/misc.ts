@@ -88,6 +88,8 @@ export const settingsSchema = z.object({
   phone: z.string().trim().min(5).max(50),
   whatsapp: z.string().trim().max(50).optional().nullable(),
   address: z.string().trim().optional().nullable(),
+  mapLatitude: z.coerce.number().min(-90).max(90).optional().nullable(),
+  mapLongitude: z.coerce.number().min(-180).max(180).optional().nullable(),
   workingHours: z.string().trim().optional().nullable(),
   socialLinkedin: z.string().trim().optional().nullable(),
   socialFacebook: z.string().trim().optional().nullable(),

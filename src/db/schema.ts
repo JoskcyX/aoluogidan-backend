@@ -18,6 +18,7 @@ import {
   primaryKey,
   pgEnum,
   jsonb,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
@@ -294,6 +295,12 @@ export const siteSettings = pgTable("site_settings", {
   phone: varchar("phone", { length: 50 }).notNull().default("+1 (555) 000-0000"),
   whatsapp: varchar("whatsapp", { length: 50 }),
   address: text("address"),
+  // Coordinates for the Contact page map. Preferred over geocoding the
+  // free-text address above, which is unreliable with Google's unofficial
+  // embed endpoint. Optional — the frontend falls back to the address
+  // string if these aren't set.
+  mapLatitude: doublePrecision("map_latitude"),
+  mapLongitude: doublePrecision("map_longitude"),
   workingHours: text("working_hours"),
 
   socialLinkedin: text("social_linkedin"),
